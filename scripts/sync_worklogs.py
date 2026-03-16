@@ -10,9 +10,11 @@ NOTION_TOKEN = os.environ["NOTION_TOKEN"]
 NOTION_DATA_SOURCE_ID = os.environ["NOTION_DATA_SOURCE_ID"]
 WORKLOG_URL = os.environ["WORKLOG_URL"]
 
+NOTION_VERSION = "2026-03-11"
+
 HEADERS = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
-    "Notion-Version": "2025-09-03",
+    "Notion-Version": NOTION_VERSION,
     "Content-Type": "application/json",
 }
 
@@ -41,7 +43,7 @@ def download_csv():
 
         page.goto(WORKLOG_URL, wait_until="networkidle")
 
-        # Change this if your button text is different
+        # Change this if the button text is different
         with page.expect_download(timeout=30000) as download_info:
             page.get_by_role("button", name="Export CSV").click()
 
@@ -53,7 +55,7 @@ def download_csv():
         raise FileNotFoundError("CSV was not downloaded.")
 
 
-def notion_query_existing_sync_keys():
+def query_existing_sync_keys():
     url = f"https://api.notion.com/v1/data_sources/{NOTION_DATA_SOURCE_ID}/query"
     payload = {"page_size": 100}
     keys = set()
@@ -83,9 +85,9 @@ def notion_query_existing_sync_keys():
 def make_sync_key(row: dict) -> str:
     raw = "|".join([
         row.get("Task", "").strip(),
-        row.get("Date", "").strip(),
-        row.get("Duration", "").strip(),
-        row.get("Project", "").strip(),
+        row.get("Dato", "").strip(),
+        row.get("Tid", "").strip(),
+        row.get("Person", "").strip(),
         row.get("Notes", "").strip(),
     ])
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -94,23 +96,28 @@ def make_sync_key(row: dict) -> str:
 def create_notion_row(row: dict):
     sync_key = make_sync_key(row)
 
+    duration_raw = (row.get("Tid", "") or "").strip()
+    duration_value = float(duration_raw.replace(",", ".")) if duration_raw else None
+
+    date_raw = (row.get("Dato", "") or "").strip()
+
     payload = {
         "parent": {
             "type": "data_source_id",
-            "data_source_id": NOTION_DATA_SOURCE_ID
+            "data_source_id": NOTION_DATA_SOURCE_ID,
         },
         "properties": {
             "Task": {
                 "title": title_text(row.get("Task", ""))
             },
-            "Date": {
-                "date": {"start": row.get("Date", "").strip()} if row.get("Date", "").strip() else None
+            "Dato": {
+                "date": {"start": date_raw} if date_raw else None
             },
-            "Duration": {
-                "number": float(row["Duration"]) if row.get("Duration", "").strip() else None
+            "Tid": {
+                "number": duration_value
             },
-            "Project": {
-                "rich_text": rich_text(row.get("Project", ""))
+            "Person": {
+                "rich_text": rich_text(row.get("Person", ""))
             },
             "Notes": {
                 "rich_text": rich_text(row.get("Notes", ""))
@@ -126,17 +133,19 @@ def create_notion_row(row: dict):
 
 
 def import_csv_to_notion():
-    existing = notion_query_existing_sync_keys()
+    existing_keys = query_existing_sync_keys()
     created = 0
     skipped = 0
 
     with open(CSV_PATH, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
+
         for row in reader:
             key = make_sync_key(row)
-            if key in existing:
+            if key in existing_keys:
                 skipped += 1
                 continue
+
             create_notion_row(row)
             created += 1
 
