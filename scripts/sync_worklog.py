@@ -33,27 +33,36 @@ def title_text(value: str):
     value = (value or "").strip() or "Untitled"
     return [{"text": {"content": value[:2000]}}]
 
-
 def download_csv():
     DOWNLOAD_DIR.mkdir(exist_ok=True)
+
+    from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(accept_downloads=True)
 
+        # open the work logger site
         page.goto(WORKLOG_URL, wait_until="networkidle")
 
-        # Change this if the button text is different
+        # debug screenshot
+        page.screenshot(path="debug-page.png", full_page=True)
+
+        # find all toolbar buttons
+        buttons = page.locator("button.inline-flex.items-center")
+        print("Button count:", buttons.count())
+
+        # click the last button (export button)
         with page.expect_download(timeout=30000) as download_info:
-            page.get_by_role("button", name="Export").click()
+            buttons.last.click()
 
         download = download_info.value
         download.save_as(str(CSV_PATH))
+
         browser.close()
 
     if not CSV_PATH.exists():
         raise FileNotFoundError("CSV was not downloaded.")
-
 
 def query_existing_sync_keys():
     url = f"https://api.notion.com/v1/data_sources/{NOTION_DATA_SOURCE_ID}/query"
