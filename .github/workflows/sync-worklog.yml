@@ -5,23 +5,27 @@ on:
   schedule:
     - cron: "0 18 * * *"
 
+concurrency:
+  group: sync-worklog
+  cancel-in-progress: true
+
 jobs:
   sync:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Check out repo
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install packages
+      - name: Install Python packages
         run: pip install -r requirements.txt
 
-      - name: Install Playwright browser
+      - name: Install Playwright Chromium
         run: python -m playwright install chromium --with-deps
 
       - name: Run sync
@@ -30,3 +34,12 @@ jobs:
           NOTION_DATA_SOURCE_ID: ${{ secrets.NOTION_DATA_SOURCE_ID }}
           WORKLOG_URL: ${{ secrets.WORKLOG_URL }}
         run: python scripts/sync_worklog.py
+
+      - name: Upload debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-artifacts
+          path: |
+            debug-page.png
+            downloads/
