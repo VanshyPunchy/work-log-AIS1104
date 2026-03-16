@@ -42,19 +42,31 @@ def download_csv():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(accept_downloads=True)
 
-        # open the work logger site
-        page.goto(WORKLOG_URL, wait_until="networkidle")
+        page.goto(WORKLOG_URL, wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(5000)
 
-        # debug screenshot
+        print("Final URL:", page.url)
+        print("Page title:", page.title())
+
+        body_text = page.locator("body").inner_text()
+        print("Body preview:", body_text[:1000])
+
         page.screenshot(path="debug-page.png", full_page=True)
 
-        # find all toolbar buttons
-        buttons = page.locator("button.inline-flex.items-center")
-        print("Button count:", buttons.count())
+        all_buttons = page.locator("button")
+        print("Total buttons found:", all_buttons.count())
 
-        # click the last button (export button)
+        for i in range(all_buttons.count()):
+            try:
+                print(f"Button {i} text:", all_buttons.nth(i).inner_text())
+            except Exception as e:
+                print(f"Button {i} text error:", e)
+
+        export_button = page.get_by_text("Export")
+        print("Export text matches:", export_button.count())
+
         with page.expect_download(timeout=30000) as download_info:
-            buttons.last.click()
+            export_button.first.click()
 
         download = download_info.value
         download.save_as(str(CSV_PATH))
