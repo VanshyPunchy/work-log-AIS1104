@@ -45,7 +45,7 @@ def download_csv():
 
         # Change this if the button text is different
         with page.expect_download(timeout=30000) as download_info:
-            page.get_by_role("button", name="Export CSV").click()
+            page.get_by_role("button", name="Export").click()
 
         download = download_info.value
         download.save_as(str(CSV_PATH))
