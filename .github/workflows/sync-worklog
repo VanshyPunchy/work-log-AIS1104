@@ -3,11 +3,7 @@ name: Sync worklog to Notion
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 18 * * *"   # every day at 18:00 UTC
-
-concurrency:
-  group: sync-worklog
-  cancel-in-progress: true
+    - cron: "0 18 * * *"
 
 jobs:
   sync:
@@ -22,12 +18,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install Python packages
         run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: python -m playwright install --with-deps chromium
 
       - name: Run sync
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATA_SOURCE_ID: ${{ secrets.NOTION_DATA_SOURCE_ID }}
-          WORKLOG_CSV_URL: ${{ secrets.WORKLOG_CSV_URL }}
+          WORKLOG_URL: ${{ secrets.WORKLOG_URL }}
         run: python scripts/sync_worklog.py
