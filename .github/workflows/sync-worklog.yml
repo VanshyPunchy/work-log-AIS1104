@@ -25,10 +25,23 @@ jobs:
       - name: Install Python packages
         run: pip install -r requirements.txt
 
-      - name: Write Firebase key file
+      - name: Write Firebase service account file
         run: printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > firebase-service-account.json
 
       - name: Run sync
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-          EXPORT_TOKEN: ${{
+          GOOGLE_APPLICATION_CREDENTIALS: firebase-service-account.json
+          EXPORT_TOKEN: ${{ secrets.EXPORT_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATA_SOURCE_ID: ${{ secrets.NOTION_DATA_SOURCE_ID }}
+        run: python scripts/sync_worklog.py
+
+      - name: Upload debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-artifacts
+          path: |
+            downloads/
+            *.png
